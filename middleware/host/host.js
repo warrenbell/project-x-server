@@ -6,8 +6,8 @@ var stringUtil = require("underscore.string");
  *
  * @type {Function}
  */
-module.exports = function()
-{
+module.exports = function() {
+  
     var push = function(candidates, text)
     {
         if (text)

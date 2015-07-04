@@ -33,7 +33,8 @@ module.exports.http = {
     order: [
        'startRequestTimer',
        'cookieParser',
-       'session',
+    //   'session',
+    //   'accesstime',
        'host',
     //   'myRequestLogger',
        'bodyParser',
@@ -62,7 +63,8 @@ module.exports.http = {
     // }
 
     proxy: require('../middleware/proxy/proxy').proxy(),
-    host: require('../middleware/host/host').hostInterceptor()
+    host: require('../middleware/host/host').hostInterceptor(),
+    accesstime: require('../middleware/accesstime/accesstime').accessTimeInterceptor()
 
 
   /***************************************************************************

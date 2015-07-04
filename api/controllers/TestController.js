@@ -14,7 +14,6 @@ module.exports = {
         platform.listRepositories({
             "limit": -1
         }).then(function() {
-          //sails.log.info("directory:" + JSON.stringify(this, null, 2));
           res.send(JSON.stringify(this, null, 2));
         });
 
@@ -24,13 +23,13 @@ module.exports = {
   },
   testUserConnection: function (req, res) {
 
-    sails.services.gitanaservice.getUserConnection(req, function(err) {
+    sails.services.gitanaservice.getUserConnection(req, res, function(err) {
 
       if(err) {
         res.send(err.output);
         return;
       }
-      var platform = this;
+      var platform = this.platform();
       //var application = this.application();
 
         platform.listRepositories({
@@ -47,13 +46,13 @@ module.exports = {
   },
   testUserDisconnect: function (req, res) {
 
-    sails.services.gitanaservice.disconnectUserConnection(req, function(err) {
+    sails.services.gitanaservice.disconnectUserConnection(req, res, function(err) {
 
       if(err) {
         res.send(err.output);
         return;
       }
-      var platform = this;
+      //var platform = this.platform();
 
       res.send(JSON.stringify(this, null, 2));
       //var application = this.application();

@@ -1,5 +1,19 @@
 var Gitana = require("gitana");
 
+/* Notes
+
+Currently we are placing the Gitana ticket in a cookie. This means that these connections services will only work for http requests. The ticket will have to be placed in the session
+in order for these connection services to work for socket.io requests. Store the gitana ticket in req.session.ticket instead of res.cookie('ticket', ticket, { maxAge: 900000 }); .
+
+Enable sessions by:
+
+1) In /config/http.js un comment out "session" in the middleware stack order array.
+2) In /config/session.js un comment out the line "adapter: 'connect-redis',"
+3) Make sure you have an instance of redis running somewhere
+
+*/
+
+
 // Example of err object returned in Gitana.connect(sails.config.gitanaConfig, function(err) {});
 /*{
   "statusText": null,
@@ -59,24 +73,32 @@ headers["Authorization"] = this.platform().getDriver().getHttpHeaders()["Authori
 var domainId = this.datastore("principals").getId();
 var application = this.application();
 
-Example of gitanaConfig for appUser connection
-
-{
-    "clientKey": "5d6d1290-1f9b-44fc-864d-1b743e528a55",
-    "clientSecret": "oeafPRBaN0LUxXfcZre/GjMN2gcW+Y7UAuGkUID1B8hCKPQJhFQpEiBsn7BBkZ6bA1pqdRZHjdtaZtLLeagtCbR9iua8DxEgilPwcL7nbrg=",
-    "username": "6c12eb79-cda1-41db-abb0-891231b2cbac",
-    "password": "cT2vrg9T+s8eKpVTC5KWbgUNEoz8/adKnVMQGgURkjx3WXBUTBkVRDlktX5PFWnSFP2g3OTApwo0Mk3kyn4ez6GE4QeiButBO/pxjAmrly0=",
-    "baseURL": "https://api.cloudcms.com",
-    "application": "9f923e9ef3e69ccaa64f"
-}
 
 */
 
 module.exports = function() {
 
+  /*
+    gitanaConfig should look similar to this
+
+    {
+      "clientKey": "5d6d1290-1f9b-44fc-864d-1b743e528a55",
+      "clientSecret": "oeafPRBaN0LUxXfcZre/GjMN2gcW+Y7UAuGkUID1B8hCKPQJhFQpEiBsn7BBkZ6bA1pqdRZHjdtaZtLLeagtCbR9iua8DxEgilPwcL7nbrg=",
+      "baseURL": "https://api.cloudcms.com",
+      "application": "9f923e9ef3e69ccaa64f",
+      "ticket": "45c9c3bc-f1d0-4ab7-8ff8-053f6e877bd0"
+    }
+
+  */
+
+  var getGitanaConfigWithTicketFromCookie = function(req) {
+    var gitanaConfig = getGitanaConfigWithoutUsernameAndPassword();
+    gitanaConfig.ticket = req.cookies.ticket;
+    return gitanaConfig;
+  };
 
   /*
-    gitanaConfig should look like this
+    gitanaConfig should look similar to this
 
     {
       "clientKey": "5d6d1290-1f9b-44fc-864d-1b743e528a55",
@@ -88,168 +110,15 @@ module.exports = function() {
     }
   */
 
-  var doConnectAppUser = function(gitanaConfig, callback) {
-    sails.log.info("gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
-
-    Gitana.connect(gitanaConfig, function(err) {
-      // Connection handler function
-
-      if(err) {
-        err.output = "There was a problem connecting to Cloud CMS. Please try again or contact Cloud CMS for assistance. Message: ";
-
-        if (err.message) {
-            err.output += err.message;
-            sails.log.error(JSON.stringify(err, null, 2));
-        }
-
-        callback.call(this, err);
-      }
-      callback.call(this);
-    });
-  };
-
-  /*
-    gitanaConfig should look like this
-
-    {
-      "clientKey": "5d6d1290-1f9b-44fc-864d-1b743e528a55",
-      "clientSecret": "oeafPRBaN0LUxXfcZre/GjMN2gcW+Y7UAuGkUID1B8hCKPQJhFQpEiBsn7BBkZ6bA1pqdRZHjdtaZtLLeagtCbR9iua8DxEgilPwcL7nbrg=",
-      "baseURL": "https://api.cloudcms.com",
-      "application": "9f923e9ef3e69ccaa64f"
-    }
-
-    usernamePasswordSecret should look like this
-
-    {
-      "username": "username",
-      "password": "password"
-    }
-  */
-
-  var doConnectWithAuthentication = function(usernamePasswordSecret, gitanaConfig, req, callback) {
-    sails.log.info("gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
-    sails.log.info("usernamePasswordSecret=" + JSON.stringify(usernamePasswordSecret, null, 2));
-
-    Gitana.connect(gitanaConfig, function(err) {
-      // Connection handler function
-
-      if(err) {
-        err.output = "There was a problem connecting to Cloud CMS.  Please try again or contact Cloud CMS for assistance. Message: ";
-
-        if (err.message) {
-            err.output += err.message;
-            sails.log.error(JSON.stringify(err, null, 2));
-        }
-
-        callback.call(this, err);
-      }
-    }).authenticate(usernamePasswordSecret, function(obj){
-      // Authentication failed handler function
-      sails.log.error("Login Failed");
-
-      var err = {
-        message: "Username or Password is incorrect",
-        output: "doConnectWithAuthentication could not be completed. Message: Username or Password is incorrect"
-      };
-
-      callback.call(this, err);
-    }).then(function() {
-      // Authentication succeeded handler function
-      sails.log.info("Login Succeeded");
-
-      req.session.accessToken = this.getDriver().http.accessToken();
-      callback.call(this);
-    });
-  };
-
-  /*
-    gitanaConfig should look like this
-
-    {
-      "clientKey": "5d6d1290-1f9b-44fc-864d-1b743e528a55",
-      "clientSecret": "oeafPRBaN0LUxXfcZre/GjMN2gcW+Y7UAuGkUID1B8hCKPQJhFQpEiBsn7BBkZ6bA1pqdRZHjdtaZtLLeagtCbR9iua8DxEgilPwcL7nbrg=",
-      "baseURL": "https://api.cloudcms.com",
-      "application": "9f923e9ef3e69ccaa64f",
-      "token": "45c9c3bc-f1d0-4ab7-8ff8-053f6e877bd0"
-    }
-
-  */
-
-  var doConnectWithAccessToken = function(gitanaConfig, req, callback) {
-    sails.log.info("gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
-
-    Gitana.connect(gitanaConfig, function(err) {
-      // Connection handler function
-
-      if(err) {
-        err.output = "There was a problem connecting to Cloud CMS with an existing access token.  Please try again or contact Cloud CMS for assistance. Message: ";
-
-        if (err.message) {
-            err.output += err.message;
-            sails.log.error(JSON.stringify(err, null, 2));
-        }
-        callback.call(this, err);
-      }
-    }).then(function() {
-      // Connection with access token succeeded handler function
-      sails.log.info("Connection with access token Succeeded");
-
-      req.session.accessToken = this.getDriver().http.accessToken();
-      callback.call(this);
-    });
-  };
-
-  /*
-    gitanaConfig should look like this
-
-    {
-      "clientKey": "5d6d1290-1f9b-44fc-864d-1b743e528a55",
-      "clientSecret": "oeafPRBaN0LUxXfcZre/GjMN2gcW+Y7UAuGkUID1B8hCKPQJhFQpEiBsn7BBkZ6bA1pqdRZHjdtaZtLLeagtCbR9iua8DxEgilPwcL7nbrg=",
-      "baseURL": "https://api.cloudcms.com",
-      "application": "9f923e9ef3e69ccaa64f",
-      "token": "45c9c3bc-f1d0-4ab7-8ff8-053f6e877bd0"
-    }
-
-  */
-
-  var doDisconnect = function(gitanaConfig, req, callback) {
-    sails.log.info("gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
-
-    Gitana.connect(gitanaConfig, function(err) {
-      // Connection handler function
-
-      if(err) {
-        err.output = "There was a problem connecting to Cloud CMS with an existing access token.  Please try again or contact Cloud CMS for assistance. Message: ";
-
-        if (err.message) {
-            err.output += err.message;
-            sails.log.error(JSON.stringify(err, null, 2));
-        }
-        callback.call(this, err);
-      }
-    }).logout().then(function() {
-      // Connection with access token succeeded handler function
-      sails.log.info("Disconnecting with access token Succeeded");
-      req.session.accessToken = undefined;
-      callback.call(this);
-    });
-  };
-
-  var getGitanaConfigWithAccessTokenFromSession = function(req) {
-    var gitanaConfig = getGitanaConfigWithoutUsernameAndPassword();
-    gitanaConfig.token = req.session.accessToken;
-    return gitanaConfig;
-  };
-
-  var getUsernamePasswordFromHeaders = function(req, authorizationHeaderName) {
+  var getGitanaConfigWithUsernamePasswordFromHeaders = function(req, authorizationHeaderName) {
 
     var username;
     var password;
-    var r;
+    var gitanaConfig = getGitanaConfigWithoutUsernameAndPassword();
 
     if (authorizationHeaderName) {
         var authorizationHeader = req.headers[authorizationHeaderName];
-
+        sails.log.info("authorizationHeader=[" + authorizationHeader + "]");
         if (authorizationHeader) {
             var z = authorizationHeader.indexOf("Basic ");
 
@@ -271,12 +140,12 @@ module.exports = function() {
         }
     }
     if(username && username.length > 0 && password && password.length > 0) {
-      r = {
-        username: username,
-        password: password
-      };
+      // This gets rid of any connections associated with the username
+      // Gitana.disconnect(gitanaConfig.clientKey + ":" + username, true);
+      gitanaConfig.username = username;
+      gitanaConfig.password = password;
     }
-    return r;
+    return gitanaConfig;
   };
 
   var getAuthorizationHeaderName = function(req) {
@@ -302,36 +171,106 @@ module.exports = function() {
     return gitanaConfig;
   };
 
+  var getGitanaConfigWithUsernameAndPasswordForGuest = function() {
+    var gitanaConfig = getGitanaConfigWithoutUsernameAndPassword();
+    gitanaConfig.username = "guest";
+    gitanaConfig.password = "guest";
+    return gitanaConfig;
+  };
+
+  // Connection functions
+
+  var doConnect = function(res, gitanaConfig, callback) {
+    //sails.log.info("gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
+
+    Gitana.connect(gitanaConfig, function(err) {
+      // Connection handler
+      sails.log.info("gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
+
+      if(err) {
+        err.output = "There was a problem connecting to Cloud CMS. Message: ";
+
+        if (err.message) {
+            err.output += err.message;
+            sails.log.error(JSON.stringify(err, null, 2));
+        }
+
+        sails.log.error("There was an error connecting, gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
+        callback.call(this, err);
+      } else {
+        sails.log.info("Success getting connection");
+        if(res) {
+          var ticket = this.getDriver().getAuthInfo().getTicket();
+          res.cookie('ticket', ticket, { maxAge: 900000 });
+        }
+        callback.call(this);
+      }
+    });
+  };
+
+  var doDisconnect = function(res, gitanaConfig, callback) {
+    sails.log.info("gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
+
+    Gitana.connect(gitanaConfig, function(err) {
+      // Connection handler function
+
+      if(err) {
+        err.output = "There was an error connecting to Cloud CMS with an existing gitana ticket. Message: ";
+
+        if (err.message) {
+            err.output += err.message;
+            sails.log.error(JSON.stringify(err, null, 2));
+        }
+        sails.log.error("There was an error connecting, gitanaConfig=" + JSON.stringify(gitanaConfig, null, 2));
+        callback.call(this, err);
+      }
+    }).logout(true).then(function() {
+      // Connection with ticket succeeded handler function
+      sails.log.info("Disconnecting with gitana ticket Succeeded");
+      res.clearCookie('ticket');
+      callback.call(this);
+    });
+  };
+
+  // Main Interface
+
   var r = {};
+
+  /*
+    {
+        "clientKey": "5d6d1290-1f9b-44fc-864d-1b743e528a55",
+        "clientSecret": "oeafPRBaN0LUxXfcZre/GjMN2gcW+Y7UAuGkUID1B8hCKPQJhFQpEiBsn7BBkZ6bA1pqdRZHjdtaZtLLeagtCbR9iua8DxEgilPwcL7nbrg=",
+        "username": "6c12eb79-cda1-41db-abb0-891231b2cbac",
+        "password": "cT2vrg9T+s8eKpVTC5KWbgUNEoz8/adKnVMQGgURkjx3WXBUTBkVRDlktX5PFWnSFP2g3OTApwo0Mk3kyn4ez6GE4QeiButBO/pxjAmrly0=",
+        "baseURL": "https://api.cloudcms.com",
+        "application": "9f923e9ef3e69ccaa64f"
+    }
+  */
 
   r.getAppUserConnection = function(callback) {
     sails.log.info('Retrieving Gitana driver for appuser');
-    doConnectAppUser(sails.config.gitanaConfig, callback);
+    var gitanaConfig = sails.config.gitanaConfig;
+    gitanaConfig.key = gitanaConfig.application;
+    doConnect(undefined, sails.config.gitanaConfig, callback);
   };
 
-  r.getUserConnection = function(req, callback) {
+  // 1) Checks for username and password, if yes, tries to authenticate
+  // 2) Checks if Gitana ticket is in a cookie, if yes, tries to authenticate
+  // 3) Last tries to authenticate as user "guest"
+
+  r.getUserConnection = function(req, res, callback) {
     sails.log.info('Retrieving Gitana driver for user');
     var gitanaConfig;
     var authorizationHeaderName = getAuthorizationHeaderName(req);
 
     if(authorizationHeaderName) {
       sails.log.info("Getting Connection with username and password");
-      var usernamePasswordSecret = getUsernamePasswordFromHeaders(req, authorizationHeaderName)
 
-      if(usernamePasswordSecret) {
+      gitanaConfig = getGitanaConfigWithUsernamePasswordFromHeaders(req, authorizationHeaderName)
 
-        if(usernamePasswordSecret.username.toLowerCase() ==  "guest") {
-          var err = {
-            message: "Not allowed to connect to Cloud CMS as guest user",
-            output: "GitanaService#getUserConnection could not be completed. Message: Not allowed to connect to Cloud CMS as guest user"
-          };
-
-          callback(err);
-        } else {
-          var gitanaConfig = getGitanaConfigWithoutUsernameAndPassword();
-
-          doConnectWithAuthentication(usernamePasswordSecret, gitanaConfig, req, callback)
-        }
+      if(gitanaConfig.username && gitanaConfig.password) {
+        gitanaConfig.key = gitanaConfig.clientKey + ":" + gitanaConfig.username + "-" + new Date().getTime();
+        doConnect(res, gitanaConfig, callback)
       } else {
         var err = {
           message: "Username and Password were not in the Authorization http headers.",
@@ -340,33 +279,35 @@ module.exports = function() {
 
         callback(err);
       }
-    } else if (req.session && req.session.accessToken) {
-      sails.log.info("Getting Connection with Access Token");
+    } else if (req.cookies && req.cookies.ticket) {
+      sails.log.info("Getting Connection with gitana ticket");
 
-      gitanaConfig = getGitanaConfigWithAccessTokenFromSession(req);
-      doConnectWithAccessToken(gitanaConfig, req, callback);
+      gitanaConfig = getGitanaConfigWithTicketFromCookie(req);
+      doConnect(res, gitanaConfig, callback);
 
+    } else if (false) {
+      sails.log.info("Getting Connection with Guest Account");
     } else {
 
       var err = {
-        message: "No username and password in http Authorization headers and there was no access token in the user's session",
-        output: "GitanaService#getUserConnection could not be completed. Message: No username and password in http Authorization headers and there was no access token in the user's session"
+        message: "No username and password in http Authorization headers and there was no gitana ticket in the user's cookie",
+        output: "GitanaService#getUserConnection could not be completed. Message: No username and password in http Authorization headers and there was no gitana ticket in the user's cookie"
       };
 
       callback(err);
     }
   };
 
-  r.disconnectUserConnection = function(req, callback) {
+  r.disconnectUserConnection = function(req, res, callback) {
     sails.log.info('Disconnecting Gitana driver for user');
 
-    if (req.session && req.session.accessToken) {
-      var gitanaConfig = getGitanaConfigWithAccessTokenFromSession(req);
-      doDisconnect(gitanaConfig, req, callback);
+    if (req.cookies && req.cookies.ticket) {
+      var gitanaConfig = getGitanaConfigWithTicketFromCookie(req);
+      doDisconnect(res, gitanaConfig, callback);
     } else {
       var err = {
-        message: "There was no access token in the user's session",
-        output: "GitanaService#disconnectUserConnection could not be completed. Message: There was no access token in the user's session"
+        message: "There was no gitana ticket in the user's cookie",
+        output: "GitanaService#disconnectUserConnection could not be completed. Message: There was no gitana ticket in the user's cookie"
       };
       callback(err);
     }
