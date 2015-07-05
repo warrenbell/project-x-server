@@ -1,7 +1,11 @@
 var expect = require('expect.js');
 var httpMocks = require('node-mocks-http');
 
-// Uses Mocha and Expect
+// Uses Mocha and Expect for testing
+// Athorization header for GOOD username "test1" with GOOD password "test1": "Basic dGVzdDE6dGVzdDE=" exclude quotes
+// Athorization header for GOOD username "test2" with GOOD password "test2": "Basic dGVzdDI6dGVzdDI=" exclude quotes
+// Athorization header for GOOD username "test1" with BAD password "bogus": "Basic dGVzdDE6Ym9ndXM=" exclude quotes
+// Athorization header for BAD username "bogus" with BAD password "bogus": "Basic Ym9ndXM6Ym9ndXM=" exclude quotes
 
 describe.only('GitanaService', function() {
 
@@ -14,13 +18,6 @@ describe.only('GitanaService', function() {
         expect(err).to.be(undefined);
         done();
       });
-
-      /*Users.find()
-        .then(function(results) {
-          // some tests
-          done();
-        })
-        .catch(done);*/
     });
   });
 
@@ -30,20 +27,13 @@ describe.only('GitanaService', function() {
     it('should get a User Connection using a GOOD username and a GOOD password', function (done) {
       this.timeout(30000);
       var req = httpMocks.createRequest({
-        headers: {"Authorization": "Basic d2FyaXNoOjZjdGk1cWY4TGk="}
+        headers: {"Authorization": "Basic dGVzdDE6dGVzdDE="}
       });
       var res = httpMocks.createResponse();
       sails.services.gitanaservice.getUserConnection(req, res, function(err) {
         expect(err).to.be(undefined);
         done();
       });
-
-      /*Users.find()
-        .then(function(results) {
-          // some tests
-          done();
-        })
-        .catch(done);*/
     });
   });
 
@@ -60,13 +50,6 @@ describe.only('GitanaService', function() {
         expect(err).not.to.be(undefined);
         done();
       });
-
-      /*Users.find()
-        .then(function(results) {
-          // some tests
-          done();
-        })
-        .catch(done);*/
     });
   });
 
@@ -83,13 +66,6 @@ describe.only('GitanaService', function() {
         expect(err).not.to.be(undefined);
         done();
       });
-
-      /*Users.find()
-        .then(function(results) {
-          // some tests
-          done();
-        })
-        .catch(done);*/
     });
   });
 
@@ -113,13 +89,6 @@ describe.only('GitanaService', function() {
           done();
         });
       });
-
-      /*Users.find()
-        .then(function(results) {
-          // some tests
-          done();
-        })
-        .catch(done);*/
     });
   });
 
@@ -144,13 +113,6 @@ describe.only('GitanaService', function() {
           done();
         });
       });
-
-      /*Users.find()
-        .then(function(results) {
-          // some tests
-          done();
-        })
-        .catch(done);*/
     });
   });
 
@@ -182,13 +144,6 @@ describe.only('GitanaService', function() {
           });
         });
       });
-
-      /*Users.find()
-        .then(function(results) {
-          // some tests
-          done();
-        })
-        .catch(done);*/
     });
   });
 

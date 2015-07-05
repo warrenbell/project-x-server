@@ -1,7 +1,5 @@
 module.exports = {
   testAppUserConnection: function (req, res) {
-    //sails.services.gitanaservice.getAppUserConnection(function(err)
-    // 'warish', '6cti5qf8Li'
     sails.services.gitanaservice.getAppUserConnection(function(err) {
 
       if(err) {
@@ -11,8 +9,14 @@ module.exports = {
       var platform = this.platform();
       //var application = this.application();
 
-        platform.listRepositories({
+        /*platform.listRepositories({
             "limit": -1
+        }).then(function() {
+          res.send(JSON.stringify(this, null, 2));
+        });*/
+
+        platform.listRepositories().each(function() {
+          console.log("Repository title: " + this.get("title"));
         }).then(function() {
           res.send(JSON.stringify(this, null, 2));
         });
